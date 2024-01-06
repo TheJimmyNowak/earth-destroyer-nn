@@ -13,7 +13,10 @@ def cost_function(
 
 
 def gradient_descent(
-    weights: np.ndarray, target: np.ndarray, prediction: np.ndarray, alpha: float = 0.01
+    weights: np.ndarray,
+    target: np.ndarray,
+    prediction: np.ndarray,
+    alpha: float = 0.01,
 ) -> np.ndarray:
     condition = (d := 2 * (prediction - target)) > alpha
     decrease_value = d
@@ -31,22 +34,74 @@ def make_prediction(
     return layer_2
 
 
+def train_test_split(
+    dataset: np.ndarray,
+    target: np.ndarray,
+    test_size: float = 0.33,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    if test_size < 0 or test_size > 1:
+        raise ValueError("Test size should be in range <0, 1>")
+
+    if (dataset_len := len(dataset)) != len(target):
+        raise ValueError("Length of dataset and targets doesn't match")
+
+    test_samples = int(dataset_len * test_size)
+
+    indices = np.random.permutation(dataset_len)
+
+    test_indices = indices[:test_samples]
+    train_indices = indices[test_samples:]
+
+    train_x, test_x = dataset[train_indices], dataset[test_indices]
+    train_y, test_y = target[train_indices], target[test_indices]
+
+    return train_x, train_y, test_x, test_y
+
+
 if __name__ == "__main__":
-    # Liczba wieksza od 1 Daje 1
     weights = np.array([1.45, -0.66])
     bias = np.array([0.0])
+    DATASET_SIZE = 2000
 
-    for _ in range(100000):
-        input_vector = np.random.rand(1, 2)[0]
-        input_vector = input_vector * 10 + 1
+    dataset = np.random.rand(DATASET_SIZE, 2)
+    dataset = dataset * 100
 
-        target = int((input_vector[0] + input_vector[1]) > 5)
-        prediction = make_prediction(input_vector, weights, bias)
-        weights = gradient_descent(weights, np.array([target]), prediction, alpha=0.1)
+    row_sums = np.sum(dataset, axis=1)
+    target = row_sums < 100
 
-    input = np.array([1, 2.63])
-    print("0 + 0.63 > 1  => {}".format(make_prediction(input, weights, bias)))
-    input = np.array([1.2, 15.63])
-    print("1.2 + 0.63 > 1  => {}".format(make_prediction(input, weights, bias)))
+    train_dataset, train_target, test_dataset, test_target = train_test_split(
+        dataset, target
+    )
 
-# https://realpython.com/python-ai-neural-network/
+    for inp, t in zip(train_dataset, train_target):
+        pred = make_prediction(inp, weights, bias)
+        weights = gradient_descent(weights, t, pred, alpha=0.1)
+
+    accurate_pred = 0
+
+    for inp, t in zip(test_dataset, test_target):
+        pred = make_prediction(inp, weights, bias)
+        if round(pred[0]) == t:
+            accurate_pred += 1
+
+    with open("results.csv", "w") as f:
+        for i in range(0, 200, 10):
+            for j in range(0, 200, 10):
+                inp = np.array([i, j])
+                pred = make_prediction(inp, weights, bias)[0]
+                f.write("{};{};{};\n".format(i, j, pred))
+
+    print(accurate_pred / len(test_dataset))
+
+    # while True:
+    #     a = float(input("Podaj a: "))
+    #     b = float(input("Podaj b: "))
+    #
+    #     inp = np.array([a, b])
+    #     is_bigger = make_prediction(inp, weights, bias)[0]
+    #
+    #     print(is_bigger)
+    #     # if is_bigger:
+    #     #     print("{} + {} > 100".format(a, b))
+    #     # else:
+    #     #     print("{} + {} < 100".format(a, b))
